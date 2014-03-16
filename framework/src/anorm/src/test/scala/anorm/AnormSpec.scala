@@ -307,10 +307,131 @@ object AnormSpec extends Specification with H2Database with AnormTest {
           }
       }
   }
+
+  import java.util._
+  import java.text.SimpleDateFormat
+
+  val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
+
+  "datetime columns" should {
+    "be converted to java.sql.Timestamp" in withConnection {
+      implicit c =>
+
+        val created = dateFormat.parse("2014-01-01 00:00:00.000")
+
+        createTable(
+          "datetime_test",
+          "id bigint primary key auto_increment",
+          "created datetime"
+        )
+
+        val id = SQL("insert into datetime_test(created) values ({created})")
+          .on('created -> created)
+          .executeInsert()
+
+        id must beSome
+
+        val expected = new java.sql.Timestamp(created.getTime())
+
+        val selected = SQL("select * from datetime_test where id = {id}")
+          .on('id -> id.get).as(datetimeParser.singleOpt)
+        
+        selected must beSome
+        selected.get._1 mustEqual id.get
+        selected.get._2 mustEqual expected
+
+    }
+
+    "be converted to java.sql.Timestamp during DST" in withConnection {
+      implicit c =>
+
+        val created = dateFormat.parse("2014-06-01 00:00:00.000")
+
+        createTable(
+          "datetime_test",
+          "id bigint primary key auto_increment",
+          "created datetime"
+        )
+
+        val id = SQL("insert into datetime_test(created) values ({created})")
+          .on('created -> created)
+          .executeInsert()
+
+        id must beSome
+
+        val expected = new java.sql.Timestamp(created.getTime())
+
+        val selected = SQL("select * from datetime_test where id = {id}")
+          .on('id -> id.get).as(datetimeParser.singleOpt)
+        
+        selected must beSome
+        selected.get._1 mustEqual id.get
+        selected.get._2 mustEqual expected
+
+    }
+  }
+
+  "timestamp columns" should {
+    "be converted to java.sql.Timestamp" in withConnection {
+      implicit c =>
+
+        val created = dateFormat.parse("2014-01-01 00:00:00.000")
+
+        createTable(
+          "timestamp_test",
+          "id bigint primary key auto_increment",
+          "created timestamp"
+        )
+
+        val id = SQL("insert into timestamp_test(created) values ({created})")
+          .on('created -> created)
+          .executeInsert()
+
+        id must beSome
+
+        val expected = new java.sql.Timestamp(created.getTime())
+
+        val selected = SQL("select * from timestamp_test where id = {id}")
+          .on('id -> id.get).as(datetimeParser.singleOpt)
+        
+        selected must beSome
+        selected.get._1 mustEqual id.get
+        selected.get._2 mustEqual expected
+
+    }
+
+    "be converted to java.sql.Timestamp during DST" in withConnection {
+      implicit c =>
+
+        val created = dateFormat.parse("2014-06-01 00:00:00.000")
+
+        createTable(
+          "timestamp_test",
+          "id bigint primary key auto_increment",
+          "created timestamp"
+        )
+
+        val id = SQL("insert into timestamp_test(created) values ({created})")
+          .on('created -> created)
+          .executeInsert()
+
+        id must beSome
+
+        val expected = new java.sql.Timestamp(created.getTime())
+
+        val selected = SQL("select * from timestamp_test where id = {id}")
+          .on('id -> id.get).as(datetimeParser.singleOpt)
+        
+        selected must beSome
+        selected.get._1 mustEqual id.get
+        selected.get._2 mustEqual expected
+
+    }
+  }
 }
 
 sealed trait AnormTest { db: H2Database =>
-  import SqlParser.{ get, int, long, str }
+  import SqlParser.{ get, int, long, str, date }
 
   val fooBarParser1 = long("id") ~ str("foo") ~ int("bar") map {
     case id ~ foo ~ bar => TestTable(id, foo, bar)
@@ -327,6 +448,10 @@ sealed trait AnormTest { db: H2Database =>
 
   val fooBarParser4 = get[Long](1) ~ get[String](2) ~ get[Int](3) map {
     case id ~ foo ~ bar => TestTable(id, foo, bar)
+  }
+
+  val datetimeParser = long("id") ~ date("created") map {
+    case id ~ created => (id,created)
   }
 
   val mixedParser1 = str(1) ~ str("named") ~ str(3) map {
