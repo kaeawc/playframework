@@ -401,8 +401,13 @@ trait RowParser[+A] extends (Row => SqlResult[A]) { parent =>
 
   def >>[B](f: A => RowParser[B]): RowParser[B] = flatMap(f)
 
+  /** Returns possibly empty list parsed from result. */
   def * : ResultSetParser[List[A]] = ResultSetParser.list(parent)
 
+  /**
+   * Returns non empty list parse from result,
+   * or raise error if there is no result.
+   */
   def + : ResultSetParser[List[A]] = ResultSetParser.nonEmptyList(parent)
 
   /**
@@ -428,6 +433,7 @@ trait RowParser[+A] extends (Row => SqlResult[A]) { parent =>
 
 }
 
+/** Parser for scalar row (row of one single column). */
 sealed trait ScalarRowParser[+A] extends RowParser[A] {
   override def singleOpt: ResultSetParser[Option[A]] = ResultSetParser {
     case head #:: Stream.Empty if (head.data.headOption == Some(null)) =>
@@ -445,7 +451,7 @@ trait ResultSetParser[+A] extends (ResultSet => SqlResult[A]) { parent =>
 
 }
 
-object ResultSetParser {
+private[anorm] object ResultSetParser {
   def apply[A](f: ResultSet => SqlResult[A]): ResultSetParser[A] =
     new ResultSetParser[A] { rows =>
       def apply(rows: ResultSet): SqlResult[A] = f(rows)

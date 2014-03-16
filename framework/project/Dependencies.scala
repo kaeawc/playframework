@@ -67,6 +67,12 @@ object Dependencies {
     "javax.servlet" % "javax.servlet-api" % "3.0.1") ++
     specsBuild.map(_ % "test")
 
+  val javaTestDeps = Seq(
+    "junit" % "junit" % "4.11" % "test",
+    "com.novocode" % "junit-interface" % "0.11-RC1" % "test",
+    "org.easytesting" % "fest-assert" % "1.4" % "test",
+    mockitoAll % "test")
+
   val runtime = Seq(
     "io.netty" % "netty" % "3.7.0.Final",
 
@@ -81,8 +87,8 @@ object Dependencies {
 
     scalaIoFile,
 
-    "com.typesafe.akka" %% "akka-actor" % "2.3.0-RC1",
-    "com.typesafe.akka" %% "akka-slf4j" % "2.3.0-RC1",
+    "com.typesafe.akka" %% "akka-actor" % "2.3.0",
+    "com.typesafe.akka" %% "akka-slf4j" % "2.3.0",
 
     "org.scala-stm" %% "scala-stm" % "0.7",
     "commons-codec" % "commons-codec" % "1.9",
@@ -98,16 +104,14 @@ object Dependencies {
 
     "xerces" % "xercesImpl" % "2.11.0",
 
-    "javax.transaction" % "jta" % "1.1") ++ specsBuild.map(_ % "test") ++ Seq(
+    "javax.transaction" % "jta" % "1.1",
 
-    mockitoAll % "test",
-    "com.novocode" % "junit-interface" % "0.10" % "test" exclude("junit", "junit-dep"),
-    "org.easytesting" % "fest-assert" % "1.4" % "test",
     guava % "test",
 
-    "org.scala-lang" % "scala-reflect" % BuildSettings.buildScalaVersion,
+    "org.scala-lang" % "scala-reflect" % BuildSettings.buildScalaVersion) ++
+    specsBuild.map(_ % "test") ++
+    javaTestDeps
 
-    "junit" % "junit" % "4.11" % "test")
 
   val link = Seq(
     "org.javassist" % "javassist" % "3.18.0-GA")
@@ -170,6 +174,11 @@ object Dependencies {
     "org.scala-lang" % "scala-reflect" % BuildSettings.buildScalaVersion) ++
     specsBuild.map(_ % "test")
 
+  val scalacheckDependencies = Seq(
+    "org.specs2" %% "specs2-scalacheck" % specsVersion % "test",
+    "org.scalacheck" %% "scalacheck" % "1.11.3" % "test"
+  )
+
   val testDependencies = Seq("junit" % "junit" % "4.11") ++ specsBuild ++ Seq(
     "com.novocode" % "junit-interface" % "0.10" exclude("junit", "junit-dep"),
     guava,
@@ -178,7 +187,7 @@ object Dependencies {
       .exclude("org.jboss.netty", "netty")
   )
 
-  val integrationTestDependencies = Seq(
+  val integrationTestDependencies = scalacheckDependencies ++ Seq(
     "org.databene" % "contiperf" % "2.2.0" % "test"
   )
 
@@ -196,7 +205,7 @@ object Dependencies {
 
   val anormDependencies = specsBuild.map(_ % "test") ++ Seq(
     h2database % "test",
-    "org.eu.acolyte" %% "acolyte-scala" % "1.0.12" % "test",
+    "org.eu.acolyte" %% "jdbc-scala" % "1.0.15" % "test",
     "com.chuusai" % "shapeless_2.10.2" % "2.0.0-M1" % "test"
   )
 

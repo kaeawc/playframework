@@ -11,31 +11,68 @@ import java.lang.{
   Short => JShort
 }
 
-import java.sql.PreparedStatement
+import java.math.{ BigDecimal => JBigDec }
 
-/** Set value as statement parameter. */
+import java.sql.{ PreparedStatement, Types }
+
+/** Sets value as statement parameter. */
 trait ToStatement[A] {
-  def set(s: PreparedStatement, index: Int, aValue: A): Unit
+
+  /**
+   * Sets value |v| on statement |s| at specified |index|.
+   */
+  def set(s: PreparedStatement, index: Int, v: A): Unit
 }
 
 /**
  * Provided conversions to set statement parameter.
  */
 object ToStatement { // TODO: Scaladoc
+  /**
+   * Sets boolean value on statement.
+   *
+   * {{{
+   * SQL("SELECT * FROM Test WHERE enabled = {b}").on('b -> true)
+   * }}}
+   */
   implicit object booleanToStatement extends ToStatement[Boolean] {
     def set(s: PreparedStatement, i: Int, b: Boolean): Unit = s.setBoolean(i, b)
   }
 
+  /**
+   * Sets Java Boolean object on statement.
+   *
+   * {{{
+   * SQL("SELECT * FROM Test WHERE enabled = {b}").
+   *   on('b -> java.lang.Boolean.TRUE)
+   * }}}
+   */
   implicit object javaBooleanToStatement extends ToStatement[JBool] {
-    def set(s: PreparedStatement, i: Int, b: JBool): Unit = s.setBoolean(i, b)
+    def set(s: PreparedStatement, i: Int, b: JBool): Unit =
+      if (b != null) s.setBoolean(i, b) else s.setNull(i, Types.BOOLEAN)
   }
 
+  /**
+   * Sets byte value on statement.
+   *
+   * {{{
+   * SQL("SELECT * FROM Test WHERE flag = {b}").on('b -> 1.toByte)
+   * }}}
+   */
   implicit object byteToStatement extends ToStatement[Byte] {
     def set(s: PreparedStatement, i: Int, b: Byte): Unit = s.setByte(i, b)
   }
 
+  /**
+   * Sets Java Byte object on statement.
+   *
+   * {{{
+   * SQL("SELECT * FROM Test WHERE flag = {b}").on('b -> new java.lang.Byte(1))
+   * }}}
+   */
   implicit object javaByteToStatement extends ToStatement[JByte] {
-    def set(s: PreparedStatement, i: Int, b: JByte): Unit = s.setByte(i, b)
+    def set(s: PreparedStatement, i: Int, b: JByte): Unit =
+      if (b != null) s.setByte(i, b) else s.setNull(i, Types.SMALLINT)
   }
 
   implicit object doubleToStatement extends ToStatement[Double] {
@@ -43,7 +80,8 @@ object ToStatement { // TODO: Scaladoc
   }
 
   implicit object javaDoubleToStatement extends ToStatement[JDouble] {
-    def set(s: PreparedStatement, i: Int, d: JDouble): Unit = s.setDouble(i, d)
+    def set(s: PreparedStatement, i: Int, d: JDouble): Unit =
+      if (d != null) s.setDouble(i, d) else s.setNull(i, Types.DOUBLE)
   }
 
   implicit object floatToStatement extends ToStatement[Float] {
@@ -51,7 +89,8 @@ object ToStatement { // TODO: Scaladoc
   }
 
   implicit object javaFloatToStatement extends ToStatement[JFloat] {
-    def set(s: PreparedStatement, i: Int, f: JFloat): Unit = s.setFloat(i, f)
+    def set(s: PreparedStatement, i: Int, f: JFloat): Unit =
+      if (f != null) s.setFloat(i, f) else s.setNull(i, Types.FLOAT)
   }
 
   implicit object longToStatement extends ToStatement[Long] {
@@ -59,7 +98,8 @@ object ToStatement { // TODO: Scaladoc
   }
 
   implicit object javaLongToStatement extends ToStatement[JLong] {
-    def set(s: PreparedStatement, i: Int, l: JLong): Unit = s.setLong(i, l)
+    def set(s: PreparedStatement, i: Int, l: JLong): Unit =
+      if (l != null) s.setLong(i, l) else s.setNull(i, Types.BIGINT)
   }
 
   implicit object intToStatement extends ToStatement[Int] {
@@ -67,7 +107,8 @@ object ToStatement { // TODO: Scaladoc
   }
 
   implicit object integerToStatement extends ToStatement[Integer] {
-    def set(s: PreparedStatement, i: Int, v: Integer): Unit = s.setInt(i, v)
+    def set(s: PreparedStatement, i: Int, v: Integer): Unit =
+      if (v != null) s.setInt(i, v) else s.setNull(i, Types.INTEGER)
   }
 
   implicit object shortToStatement extends ToStatement[Short] {
@@ -75,27 +116,36 @@ object ToStatement { // TODO: Scaladoc
   }
 
   implicit object javaShortToStatement extends ToStatement[JShort] {
-    def set(s: PreparedStatement, i: Int, v: JShort): Unit = s.setShort(i, v)
+    def set(s: PreparedStatement, i: Int, v: JShort): Unit =
+      if (v != null) s.setShort(i, v) else s.setNull(i, Types.SMALLINT)
   }
 
-  implicit object characterToStatement extends ToStatement[Character] {
-    def set(s: PreparedStatement, i: Int, v: Character): Unit =
-      s.setString(i, v.toString)
-
-  }
-
-  implicit object stringToStatement extends ToStatement[String] {
-    def set(s: PreparedStatement, index: Int, str: String): Unit =
-      s.setString(index, str)
-  }
-
-  implicit object charToStatement extends ToStatement[Char] {
-    def set(s: PreparedStatement, index: Int, ch: Char): Unit =
-      s.setString(index, Character.toString(ch))
+  @inline private def setChar(s: PreparedStatement, i: Int, ch: Character) {
+    if (ch != null) s.setString(i, ch.toString) else s.setNull(i, Types.CHAR)
   }
 
   /**
-   * Sets null for not assigned value
+   * Sets character as parameter value.
+   *
+   * {{{
+   * SQL("SELECT * FROM tbl WHERE flag = {c}").on("c" -> 'f')
+   * }}}
+   */
+  implicit object characterToStatement extends ToStatement[Character] {
+    def set(s: PreparedStatement, i: Int, v: Character) = setChar(s, i, v)
+  }
+
+  implicit object stringToStatement extends ToStatement[String] {
+    def set(s: PreparedStatement, i: Int, str: String): Unit =
+      if (str != null) s.setString(i, str) else s.setNull(i, Types.VARCHAR)
+  }
+
+  implicit object charToStatement extends ToStatement[Char] {
+    def set(s: PreparedStatement, i: Int, ch: Char): Unit = setChar(s, i, ch)
+  }
+
+  /**
+   * Sets null for not assigned value.
    *
    * {{{
    * SQL("SELECT * FROM Test WHERE category = {c}")
@@ -148,17 +198,64 @@ object ToStatement { // TODO: Scaladoc
       // TODO: Better null handling
     }
 
+  /**
+   * Sets Java big integer on statement.
+   *
+   * {{{
+   * SQL("UPDATE tbl SET max = {m}").on('m -> new java.math.BigInteger(15))
+   * }}}
+   */
+  implicit object javaBigIntegerToStatement
+      extends ToStatement[java.math.BigInteger] {
+    def set(s: PreparedStatement, index: Int, v: java.math.BigInteger): Unit =
+      s.setBigDecimal(index, new JBigDec(v))
+  }
+
+  /**
+   * Sets big integer on statement.
+   *
+   * {{{
+   * SQL("UPDATE tbl SET max = {m}").on('m -> BigInt(15))
+   * }}}
+   */
+  implicit object scalaBigIntegerToStatement extends ToStatement[BigInt] {
+    def set(s: PreparedStatement, index: Int, v: BigInt): Unit =
+      s.setBigDecimal(index, new JBigDec(v.bigInteger))
+  }
+
+  /**
+   * Sets Java big decimal on statement.
+   *
+   * {{{
+   * SQL("UPDATE tbl SET max = {m}").on('m -> new java.math.BigDecimal(10.02f))
+   * }}}
+   */
   implicit object javaBigDecimalToStatement
-      extends ToStatement[java.math.BigDecimal] {
-    def set(s: PreparedStatement, index: Int, v: java.math.BigDecimal): Unit =
+      extends ToStatement[JBigDec] {
+    def set(s: PreparedStatement, index: Int, v: JBigDec): Unit =
       s.setBigDecimal(index, v)
   }
 
+  /**
+   * Sets big decimal on statement.
+   *
+   * {{{
+   * SQL("UPDATE tbl SET max = {m}").on('m -> BigDecimal(10.02f))
+   * }}}
+   */
   implicit object scalaBigDecimalToStatement extends ToStatement[BigDecimal] {
     def set(s: PreparedStatement, index: Int, v: BigDecimal): Unit =
       s.setBigDecimal(index, v.bigDecimal)
   }
 
+  /**
+   * Sets timestamp as statement parameter.
+   *
+   * {{{
+   * SQL("UPDATE tbl SET modified = {ts}").
+   *   on('ts -> new java.sql.Timestamp(date.getTime))
+   * }}}
+   */
   implicit object timestampToStatement extends ToStatement[java.sql.Timestamp] {
     def set(s: PreparedStatement, index: Int, ts: java.sql.Timestamp): Unit =
       s.setTimestamp(index, ts)
@@ -166,7 +263,7 @@ object ToStatement { // TODO: Scaladoc
 
   implicit object dateToStatement extends ToStatement[java.util.Date] {
     def set(s: PreparedStatement, index: Int, date: java.util.Date): Unit =
-      s.setTimestamp(index, new java.sql.Timestamp(date.getTime()))
+      s.setTimestamp(index, new java.sql.Timestamp(date.getTime))
   }
 
   implicit object uuidToStatement extends ToStatement[java.util.UUID] {

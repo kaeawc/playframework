@@ -7,6 +7,7 @@ import com.typesafe.tools.mima.plugin.MimaPlugin.mimaDefaultSettings
 import com.typesafe.tools.mima.plugin.MimaKeys.{previousArtifact, binaryIssueFilters}
 import com.typesafe.tools.mima.core._
 import com.typesafe.sbt.SbtScalariform.defaultScalariformSettings
+import scala.util.Properties.isJavaAtLeast
 
 object BuildSettings {
   import Resolvers._
@@ -47,15 +48,20 @@ object BuildSettings {
     scalaBinaryVersion := CrossVersion.binaryScalaVersion(buildScalaVersion),
     ivyLoggingLevel := UpdateLogging.DownloadOnly,
     publishTo := Some(publishingMavenRepository),
-    javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-encoding", "UTF-8", "-Xlint:-options"),
+    javacOptions ++= makeJavacOptions("1.6"),
     javacOptions in doc := Seq("-source", "1.6"),
     resolvers ++= typesafeResolvers,
     fork in Test := true,
     testListeners in (Test,test) := Nil,
+    javacOptions in Test := { if (isJavaAtLeast("1.8")) makeJavacOptions("1.8") else makeJavacOptions("1.6") },
+    unmanagedSourceDirectories in Test ++= { if (isJavaAtLeast("1.8")) Seq((sourceDirectory in Test).value / "java8") else Nil },
+    testOptions += Tests.Argument(TestFrameworks.JUnit, "-v"),
     testOptions in Test += Tests.Filter(!_.endsWith("Benchmark")),
     testOptions in PerformanceTest ~= (_.filterNot(_.isInstanceOf[Tests.Filter]) :+ Tests.Filter(_.endsWith("Benchmark"))),
     parallelExecution in PerformanceTest := false
   )
+
+  def makeJavacOptions(version: String) = Seq("-source", version, "-target", version, "-encoding", "UTF-8", "-Xlint:-options")
 
   val dontPublishSettings = Seq(
     publishArtifact := false,
@@ -142,11 +148,21 @@ object PlayBuild extends Build {
   import Generators._
   import Tasks._
 
+  private def scalaXmlModuleDependency: Setting[Seq[ModuleID]] = libraryDependencies := {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      // if scala 2.11+ is used, add dependency on scala-xml module
+      case Some((2, scalaMajor)) if scalaMajor >= 11 =>
+        libraryDependencies.value :+ "org.scala-lang.modules" %% "scala-xml" % "1.0.0"
+      case _ =>
+        libraryDependencies.value
+    }
+  }
+
   lazy val SbtLinkProject = PlaySharedJavaProject("SBT-link", "sbt-link")
     .settings(libraryDependencies := link)
 
   lazy val TemplatesProject = PlayRuntimeProject("Templates", "templates")
-    .settings(libraryDependencies := templatesDependencies)
+    .settings(libraryDependencies := templatesDependencies, scalaXmlModuleDependency)
 
   lazy val RoutesCompilerProject = PlaySbtProject("Routes-Compiler", "routes-compiler")
     .settings(libraryDependencies := routersCompilerDependencies)
@@ -179,7 +195,7 @@ object PlayBuild extends Build {
 
   lazy val PlayProject = PlayRuntimeProject("Play", "play")
     .settings(
-      libraryDependencies := runtime,
+      libraryDependencies := runtime ++ scalacheckDependencies,
       sourceGenerators in Compile <+= sourceManaged in Compile map PlayVersion,
       mappings in(Compile, packageSrc) <++= scalaTemplateSourceMappings,
       Docs.apiDocsIncludeManaged := true,
@@ -226,8 +242,8 @@ object PlayBuild extends Build {
     ).dependsOn(PlayProject)
 
   lazy val PlayJavaProject = PlayRuntimeProject("Play-Java", "play-java")
-    .settings(libraryDependencies := javaDeps)
-    .dependsOn(PlayProject)
+    .settings(libraryDependencies := javaDeps ++ javaTestDeps)
+    .dependsOn(PlayProject % "compile;test->test")
 
   lazy val PlayDocsProject = PlayRuntimeProject("Play-Docs", "play-docs")
     .settings(Docs.settings: _*)
